@@ -6,8 +6,8 @@
 
 ## 在线演示
 
-- **俄罗斯方块**: [点击这里开始游戏](https://tianci1014.github.io/snake-lite/snake.html)
-- **接金币**: [点击这里开始游戏](https://tianci1014.github.io/snake-lite/xijin.html)
+- **俄罗斯方块**: [点击这里开始游戏](https://tianci1014.github.io/game/snake.html)
+- **接金币**: [点击这里开始游戏](https://tianci1014.github.io/game/xijin.html)
 
 **俄罗斯方块**
 
