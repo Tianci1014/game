@@ -512,15 +512,18 @@
         }
 
         function drawNextPiece() {
-            if (!nextPiece) return;
-            
-            // 清除之前的显示
+            // 清除所有单元格
             for (let i = 0; i < 4; i++) {
                 for (let j = 0; j < 4; j++) {
                     const cell = document.getElementById(`next-${i}-${j}`);
-                    if (cell) cell.className = 'cell';
+                    if (cell) {
+                        cell.className = 'cell';
+                        cell.style.animation = ''; // 清除之前的动画
+                    }
                 }
             }
+
+            if (!nextPiece || !nextPiece.shape) return;
             
             // 计算居中偏移
             const offsetX = Math.floor((4 - nextPiece.shape[0].length) / 2);
@@ -533,7 +536,6 @@
                         const nextCell = document.getElementById(`next-${i + offsetY}-${j + offsetX}`);
                         if (nextCell) {
                             nextCell.className = 'cell filled';
-                            // 添加发光效果
                             nextCell.style.animation = 'glow 1.5s ease-in-out infinite alternate';
                         }
                     }
@@ -608,11 +610,15 @@
             gameLoop();
         }
 
-        async function gameLoop() {
+        function gameLoop() {
             if (!currentPiece) {
-                currentPiece = nextPiece || getRandomPiece();
+                if (!nextPiece) {
+                    nextPiece = getRandomPiece();
+                }
+                currentPiece = nextPiece;
                 nextPiece = getRandomPiece();
-                drawNextPiece();
+                drawNextPiece(); // 在设置新的 nextPiece 后立即绘制
+                
                 if (!canMove(currentPiece, currentPiece.x, currentPiece.y)) {
                     gameOver();
                     return;
@@ -626,7 +632,7 @@
                 currentPiece.y++;
             } else {
                 mergePiece();
-                await checkLines();
+                checkLines();
                 currentPiece = null;
             }
         }

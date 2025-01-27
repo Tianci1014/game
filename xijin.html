@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>接金币游戏</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+        /* 添加闪烁动画 */
+        @keyframes urgentPulse {
+            0% { background: linear-gradient(135deg, #1e3c72, #2a5298); }
+            50% { background: linear-gradient(135deg, #721e1e, #982a2a); }
+            100% { background: linear-gradient(135deg, #1e3c72, #2a5298); }
+        }
+        .game-container {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            padding: 20px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        canvas {
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            background: linear-gradient(to bottom, #e6f7ff, #ffffff);
+        }
+        .game-title {
+            color: #fff;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        /* 添加动态背景气泡 */
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+            animation: floatBubble linear infinite;
+            pointer-events: none;
+        }
+        @keyframes floatBubble {
+            0% {
+                transform: translateY(100vh) scale(1);
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(-20vh) scale(1.2);
+                opacity: 0;
+            }
+        }
+        /* 添加星星闪烁效果 */
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle linear infinite;
+            pointer-events: none;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+        /* 修改背景动画 */
+        .background-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(255,215,0,0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255,215,0,0.15) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 70%),
+                linear-gradient(45deg, rgba(30,60,114,0.3) 0%, rgba(42,82,152,0.3) 100%);
+            animation: backgroundMove 20s infinite linear;
+            z-index: 0;
+        }
+        @keyframes backgroundMove {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        /* 添加光束效果 */
+        .light-beam {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
+            transform-origin: top;
+            animation: beam linear infinite;
+            pointer-events: none;
+        }
+        @keyframes beam {
+            0% {
+                transform: translateX(-100vw) rotate(45deg);
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateX(100vw) rotate(45deg);
+                opacity: 0;
+            }
+        }
+        .game-over-panel {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(to bottom right, #ffffff, #f0f0f0);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            text-align: center;
+            min-width: 300px;
+            border: 3px solid #FFD700;
+            animation: panelPopup 0.5s ease-out;
+        }
+        .game-over-title {
+            font-size: 35px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .score-text {
+            font-size: 28px;
+            color: #333;
+            margin: 10px 0;
+        }
+        .rank-text {
+            font-size: 45px;
+            color: #FFD700;
+            margin: 20px 0;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        .high-score-text {
+            font-size: 20px;
+            color: #666;
+            margin: 10px 0;
+        }
+        .restart-button {
+            display: none;
+            margin-top: 20px;
+            padding: 12px 40px;
+            font-size: 20px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255,215,0,0.3);
+        }
+        .restart-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(255,215,0,0.4);
+        }
+        /* 添加金币闪烁动画 */
+        @keyframes coinGlow {
+            0% { filter: drop-shadow(0 0 5px rgba(255,215,0,0.5)); }
+            50% { filter: drop-shadow(0 0 15px rgba(255,215,0,0.8)); }
+            100% { filter: drop-shadow(0 0 5px rgba(255,215,0,0.5)); }
+        }
+        /* 添加倒计时闪烁动画 */
+        @keyframes timerPulse {
+            0% { transform: scale(1); color: #ff0000; }
+            50% { transform: scale(1.2); color: #ff6b6b; }
+            100% { transform: scale(1); color: #ff0000; }
+        }
+        /* 添加烟花动画效果 */
+        .firework {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: explode 1s ease-out forwards;
+        }
+        @keyframes explode {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(20);
+                opacity: 0;
+            }
+        }
+        /* 添加金币雨动画 */
+        @keyframes coinRain {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+        /* 添加结束面板动画 */
+        @keyframes panelPopup {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation"></div>
+    <div class="game-container">
+        <h1 class="game-title">接金币大挑战</h1>
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+    </div>
+    <div class="game-over-panel">
+        <div class="game-over-title">游戏结束!</div>
+        <div class="score-text">最终得分: <span id="final-score">0</span></div>
+        <div class="rank-text">第 <span id="rank-number">0</span> 名</div>
+        <div class="high-score-text">历史最高分: <span id="high-score">0</span></div>
+        <button class="restart-button" onclick="restartGame()">再来一次!</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 玩家对象
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            width: 50,
+            height: 50,
+            speed: 5,
+            particles: [] // 用于存储移动特效粒子
+        };
+
+        // 金币数组
+        let coins = [];
+        let score = 0;
+        let gameTime = 60; // 改为60秒
+        let isGameOver = false;
+        let speedMultiplier = 1;
+        let coinSpawnRate = 0.02;
+        let highScores = JSON.parse(localStorage.getItem('highScores') || '[]');
+        let isLastTenSeconds = false;
+
+        // 金币类
+        class Coin {
+            constructor() {
+                this.width = 20;
+                this.height = 20;
+                this.x = Math.random() * (canvas.width - this.width);
+                this.y = -this.height;
+                // 修改速度计算逻辑，使用指数增长
+                const progress = Math.pow((60 - gameTime) / 60, 2); // 使用平方函数让速度增长更加明显
+                this.speed = (1 + progress * 5) * (2 + Math.random() * 2);
+                this.rotation = 0;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.width/2, this.y + this.height/2);
+                ctx.rotate(this.rotation);
+                
+                // 绘制金币光晕
+                const gradient = ctx.createRadialGradient(0, 0, this.width/4, 0, 0, this.width);
+                gradient.addColorStop(0, 'rgba(255,215,0,0.8)');
+                gradient.addColorStop(1, 'rgba(255,215,0,0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.width, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 绘制金币主体
+                ctx.beginPath();
+                ctx.arc(0, 0, this.width/2, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFD700';
+                ctx.fill();
+                ctx.strokeStyle = '#DAA520';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 添加金币纹理
+                ctx.beginPath();
+                ctx.arc(-3, -3, this.width/4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.fill();
+
+                ctx.restore();
+                this.rotation += 0.1;
+            }
+
+            update() {
+                this.y += this.speed;
+            }
+        }
+
+        // 键盘控制
+        let leftPressed = false;
+        let rightPressed = false;
+
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'ArrowLeft') leftPressed = true;
+            if(e.key === 'ArrowRight') rightPressed = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if(e.key === 'ArrowLeft') leftPressed = false;
+            if(e.key === 'ArrowRight') rightPressed = false;
+        });
+
+        // 生成新金币
+        function createCoin() {
+            if(Math.random() < coinSpawnRate) {
+                coins.push(new Coin());
+            }
+        }
+
+        // 检测碰撞
+        function checkCollision(coin) {
+            return player.x < coin.x + coin.width &&
+                   player.x + player.width > coin.x &&
+                   player.y < coin.y + coin.height &&
+                   player.y + player.height > coin.y;
+        }
+
+        // 修改更新时间函数
+        function updateTimer() {
+            if (gameTime > 0 && !isGameOver) {
+                gameTime--;
+                
+                // 使用指数函数更新生成率
+                const progress = (60 - gameTime) / 60;
+                coinSpawnRate = 0.01 + Math.pow(progress, 1.5) * 0.04;
+
+                // 检查是否进入最后10秒
+                if (gameTime <= 10 && !isLastTenSeconds) {
+                    isLastTenSeconds = true;
+                    document.body.style.animation = 'urgentPulse 1s infinite';
+                }
+            } 
+            if (gameTime <= 0) {  // 移除 !isGameOver 检查
+                endGame();
+            }
+        }
+
+        // 获取排名
+        function getRank(score) {
+            highScores.push(score);
+            highScores.sort((a, b) => b - a);
+            highScores = highScores.slice(0, 10); // 只保留前10名
+            localStorage.setItem('highScores', JSON.stringify(highScores));
+            return highScores.indexOf(score) + 1;
+        }
+
+        // 修改游戏结束函数
+        function endGame() {
+            if (!isGameOver) {  // 添加判断，防止重复触发
+                isGameOver = true;
+                const rank = getRank(score);
+
+                // 停止游戏循环中的更新
+                coins = [];
+
+                // 更新结束面板内容
+                document.getElementById('final-score').textContent = score;
+                document.getElementById('rank-number').textContent = rank;
+                document.getElementById('high-score').textContent = highScores[0] || 0;
+
+                // 显示结束面板和重启按钮
+                const panel = document.querySelector('.game-over-panel');
+                panel.style.cssText = `
+                    display: block;
+                    z-index: 1000;
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                `;
+                
+                const restartBtn = document.querySelector('.restart-button');
+                restartBtn.style.cssText = `
+                    display: block;
+                    margin-top: 20px;
+                `;
+
+                // 如果是前三名，添加特殊样式
+                const rankText = document.querySelector('.rank-text');
+                if (rank <= 3) {
+                    rankText.style.color = '#FFD700';
+                    rankText.style.textShadow = '0 0 10px rgba(255,215,0,0.5)';
+                } else {
+                    rankText.style.color = '#666';
+                    rankText.style.textShadow = 'none';
+                }
+
+                // 开始庆祝效果
+                setTimeout(() => {
+                    continuousCelebration();
+                    createCoinRain(30);
+                    startFireworks();
+                }, 100);
+            }
+        }
+
+        // 修改重启游戏函数
+        function restartGame() {
+            // 隐藏结束面板
+            const panel = document.querySelector('.game-over-panel');
+            panel.style.display = 'none';
+            
+            const restartBtn = document.querySelector('.restart-button');
+            restartBtn.style.display = 'none';
+
+            // 重置游戏状态
+            isGameOver = false;
+            gameTime = 60;
+            score = 0;
+            coins = [];
+            speedMultiplier = 1;
+            coinSpawnRate = 0.01;
+            isLastTenSeconds = false;
+            document.body.style.animation = '';
+
+            // 清除特效
+            const fireworks = document.querySelectorAll('.firework');
+            fireworks.forEach(firework => firework.remove());
+
+            // 重新开始游戏
+            gameLoop();
+        }
+
+        // 设置定时器
+        setInterval(updateTimer, 1000);
+
+        // 游戏主循环
+        function gameLoop() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制背景网格
+            drawBackground();
+
+            if (!isGameOver) {  // 只在游戏未结束时更新游戏状态
+                // 更新玩家位置和粒子
+                updatePlayer();
+
+                // 绘制玩家和粒子
+                drawPlayer();
+
+                // 生成新金币
+                createCoin();
+
+                // 更新和绘制金币
+                coins = coins.filter(coin => {
+                    coin.update();
+                    coin.draw();
+
+                    if(checkCollision(coin)) {
+                        score += 10;
+                        showScoreAnimation(coin.x, coin.y);
+                        return false;
+                    }
+
+                    return coin.y < canvas.height;
+                });
+            }
+
+            // 始终绘制UI
+            drawUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 绘制玩家和移动特效
+        function drawPlayer() {
+            // 绘制玩家角色（篮子形状）
+            ctx.beginPath();
+            ctx.fillStyle = '#8B4513';
+            ctx.moveTo(player.x, player.y + player.height);
+            ctx.lineTo(player.x + player.width, player.y + player.height);
+            ctx.lineTo(player.x + player.width - 10, player.y + player.height - 10);
+            ctx.lineTo(player.x + 10, player.y + player.height - 10);
+            ctx.closePath();
+            ctx.fill();
+
+            // 添加篮子手柄
+            ctx.beginPath();
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 3;
+            ctx.moveTo(player.x + player.width/2 - 15, player.y + player.height - 10);
+            ctx.quadraticCurveTo(
+                player.x + player.width/2,
+                player.y + player.height - 30,
+                player.x + player.width/2 + 15,
+                player.y + player.height - 10
+            );
+            ctx.stroke();
+
+            // 绘制移动特效粒子
+            player.particles.forEach(particle => {
+                ctx.beginPath();
+                ctx.fillStyle = particle.color;
+                ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // 更新玩家和粒子状态
+        function updatePlayer() {
+            if(leftPressed && player.x > 0) {
+                player.x -= player.speed;
+                // 向左移动时生成粒子
+                createPlayerParticles('left');
+            }
+            if(rightPressed && player.x < canvas.width - player.width) {
+                player.x += player.speed;
+                // 向右移动时生成粒子
+                createPlayerParticles('right');
+            }
+
+            // 更新和移除粒子
+            player.particles = player.particles.filter(particle => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.alpha -= 0.05; // 粒子逐渐消失
+                return particle.alpha > 0; // 移除透明度过低的粒子
+            });
+        }
+
+        // 创建玩家移动特效粒子
+        function createPlayerParticles(direction) {
+            for (let i = 0; i < 5; i++) {
+                player.particles.push({
+                    x: player.x + (direction === 'left' ? 0 : player.width), // 粒子从篮子侧边生成
+                    y: player.y + player.height - 15 + Math.random() * 10, // 粒子在篮子底部附近
+                    size: Math.random() * 3 + 1,
+                    vx: (direction === 'left' ? -1 : 1) * Math.random() * 2, // 水平速度方向取决于移动方向
+                    vy: Math.random() * 2 - 1, // 垂直速度
+                    color: 'rgba(255, 215, 0, ' + Math.random() + ')', // 金色粒子
+                    alpha: 1
+                });
+            }
+        }
+
+        // 修改游戏主循环中的UI显示
+        function drawUI() {
+            // 绘制计分板背景
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.roundRect(10, 10, 150, 70, 10);
+            ctx.fill();
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 显示分数和时间
+            const timeColor = gameTime <= 10 ? '#ff0000' : '#333';
+            ctx.fillStyle = timeColor;
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`分数: ${score}`, 20, 35);
+            ctx.fillText(`时间: ${gameTime}秒`, 20, 65);
+
+            // 最后10秒显示大倒计时
+            if (gameTime <= 10) {
+                ctx.save();
+                ctx.translate(canvas.width/2, 50);
+                const scale = 1 + Math.sin(Date.now() / 100) * 0.2;
+                ctx.scale(scale, scale);
+                ctx.fillStyle = `hsl(${gameTime * 36}, 100%, 50%)`;
+                ctx.font = 'bold 60px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(gameTime, 0, 0);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeText(gameTime, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        // 添加背景网格
+        function drawBackground() {
+            ctx.strokeStyle = 'rgba(200, 200, 200, 0.1)';
+            ctx.lineWidth = 1;
+            
+            // 绘制动态网格
+            const offset = Date.now() / 1000;
+            
+            // 绘制垂直线
+            for(let x = -40 + (offset % 40); x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            // 绘制水平线
+            for(let y = -40 + (offset % 40); y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+
+        // 修改得分动画效果
+        function showScoreAnimation(x, y) {
+            ctx.save();
+            const gradient = ctx.createLinearGradient(x, y - 20, x, y);
+            gradient.addColorStop(0, '#FFD700');
+            gradient.addColorStop(1, '#FFA500');
+            ctx.fillStyle = gradient;
+            ctx.font = 'bold 25px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 5;
+            ctx.fillText('+10', x, y);
+            ctx.restore();
+        }
+
+        // 添加烟花效果
+        function createFirework(x, y, color) {
+            const firework = document.createElement('div');
+            firework.className = 'firework';
+            firework.style.left = x + 'px';
+            firework.style.top = y + 'px';
+            firework.style.backgroundColor = color;
+            document.body.appendChild(firework);
+            
+            setTimeout(() => {
+                document.body.removeChild(firework);
+            }, 1000);
+        }
+
+        // 修改创建金币雨函数，添加数量参数
+        function createCoinRain(count = 1) {
+            for(let i = 0; i < count; i++) {
+                const coin = document.createElement('div');
+                coin.style.cssText = `
+                    position: absolute;
+                    left: ${Math.random() * 100}vw;
+                    top: -20px;
+                    width: 20px;
+                    height: 20px;
+                    background: radial-gradient(circle at 30% 30%, #FFD700, #FFA500);
+                    border-radius: 50%;
+                    animation: coinRain ${1.5 + Math.random() * 2}s linear;
+                    z-index: 1000;
+                    box-shadow: 0 0 10px rgba(255,215,0,0.5);
+                `;
+                document.body.appendChild(coin);
+                
+                coin.addEventListener('animationend', () => {
+                    document.body.removeChild(coin);
+                });
+            }
+        }
+
+        // 添加 startFireworks 函数
+        function startFireworks() {
+            for(let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * (window.innerHeight * 0.7);
+                    const colors = ['#FFD700', '#FFA500', '#FF6B6B', '#4CAF50', '#2196F3'];
+                    createFirework(x, y, colors[Math.floor(Math.random() * colors.length)]);
+                }, i * 200);
+            }
+        }
+
+        // 添加持续庆祝效果函数
+        function continuousCelebration() {
+            if (isGameOver) {
+                // 随机位置创建烟花
+                if (Math.random() < 0.1) {
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * (window.innerHeight * 0.7);
+                    const colors = ['#FFD700', '#FFA500', '#FF6B6B', '#4CAF50', '#2196F3'];
+                    createFirework(x, y, colors[Math.floor(Math.random() * colors.length)]);
+                }
+                
+                // 随机创建金币
+                if (Math.random() < 0.05) {
+                    createCoinRain(1);
+                }
+                
+                requestAnimationFrame(continuousCelebration);
+            }
+        }
+
+        // 创建气泡
+        function createBubbles() {
+            for(let i = 0; i < 20; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                const size = Math.random() * 50 + 20;
+                bubble.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${Math.random() * 100}vw;
+                    animation-duration: ${Math.random() * 10 + 10}s;
+                    animation-delay: ${Math.random() * 5}s;
+                `;
+                document.body.appendChild(bubble);
+            }
+        }
+
+        // 创建星星
+        function createStars() {
+            for(let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3 + 1;
+                star.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${Math.random() * 100}vw;
+                    top: ${Math.random() * 100}vh;
+                    animation-duration: ${Math.random() * 3 + 1}s;
+                    animation-delay: ${Math.random() * 2}s;
+                `;
+                document.body.appendChild(star);
+            }
+        }
+
+        // 创建光束
+        function createLightBeams() {
+            for(let i = 0; i < 5; i++) {
+                const beam = document.createElement('div');
+                beam.className = 'light-beam';
+                beam.style.cssText = `
+                    height: ${Math.random() * 50 + 100}vh;
+                    top: ${Math.random() * 100}vh;
+                    animation-duration: ${Math.random() * 8 + 8}s;
+                    animation-delay: ${Math.random() * 4}s;
+                `;
+                document.body.appendChild(beam);
+            }
+        }
+
+        // 初始化背景效果
+        createBubbles();
+        createStars();
+        createLightBeams();
+
+        // 开始游戏
+        gameLoop();
+    </script>
+</body>
+</html>
