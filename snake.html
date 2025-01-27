@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>俄罗斯方块</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow: hidden;
+            position: relative;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(76, 175, 80, 0.05) 0%, transparent 70%);
+            animation: backgroundFlow 15s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes backgroundFlow {
+            0% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+        }
+
+        .background-grid {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            right: -50%;
+            bottom: -50%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -2;
+            transform-origin: center;
+            animation: gridMove 30s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% {
+                transform: perspective(1000px) rotateX(60deg) translateY(0) translateZ(0);
+            }
+            100% {
+                transform: perspective(1000px) rotateX(60deg) translateY(50px) translateZ(0);
+            }
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            box-shadow: 
+                0 0 50px rgba(0, 0, 0, 0.5),
+                0 0 100px rgba(76, 175, 80, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            background: radial-gradient(circle at center, rgba(76, 175, 80, 0.5), transparent);
+            border-radius: 50%;
+            animation: float 20s linear infinite;
+            filter: blur(2px);
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) translateX(0) scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: translateY(50vh) translateX(calc(var(--drift) * 100px)) scale(1);
+                opacity: var(--opacity);
+            }
+            100% {
+                transform: translateY(-100px) translateX(calc(var(--drift) * 200px)) scale(0.5);
+                opacity: 0;
+            }
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) ease-in-out infinite;
+            opacity: 0;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; transform: scale(1); }
+            50% { opacity: var(--opacity); transform: scale(1.5); }
+        }
+
+        #game-board {
+            width: 300px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+        }
+
+        .info-panel {
+            width: 180px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .cell {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+            aspect-ratio: 1;
+        }
+
+        .cell.filled {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            border: none;
+            box-shadow: 
+                inset 0 0 10px rgba(255, 255, 255, 0.3),
+                0 0 5px rgba(76, 175, 80, 0.5);
+            animation: glow 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                box-shadow: 
+                    inset 0 0 10px rgba(255, 255, 255, 0.3),
+                    0 0 5px rgba(76, 175, 80, 0.5);
+            }
+            to {
+                box-shadow: 
+                    inset 0 0 15px rgba(255, 255, 255, 0.4),
+                    0 0 10px rgba(76, 175, 80, 0.7);
+            }
+        }
+
+        .score {
+            font-size: 24px;
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .next-piece {
+            width: 120px;
+            height: 120px;
+            margin: 10px auto;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+        }
+
+        .next-piece .cell {
+            width: auto;
+            height: auto;
+            background: transparent;
+        }
+
+        .controls {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            line-height: 1.8;
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .controls span {
+            display: inline-block;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin: 2px;
+        }
+
+        .score-popup {
+            position: absolute;
+            color: #4CAF50;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+            pointer-events: none;
+            animation: scorePopup 1s ease-out forwards;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        @keyframes scorePopup {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 0;
+            }
+            20% {
+                transform: translateY(-20px) scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-50px) scale(0.8);
+                opacity: 0;
+            }
+        }
+
+        .score.highlight {
+            animation: scoreFlash 0.5s ease-out;
+            color: #4CAF50;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+        }
+
+        @keyframes scoreFlash {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            backdrop-filter: blur(20px);
+            box-shadow: 
+                0 0 50px rgba(0, 0, 0, 0.5),
+                0 0 100px rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+        }
+
+        .game-over h2 {
+            color: #ff6b6b;
+            font-size: 36px;
+            margin: 0 0 20px 0;
+            text-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
+        }
+
+        .game-over p {
+            font-size: 24px;
+            margin: 20px 0;
+            color: #fff;
+        }
+
+        .game-over .final-score {
+            font-size: 48px;
+            color: #4CAF50;
+            margin: 20px 0;
+            text-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+
+        .game-over button {
+            margin-top: 25px;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+        }
+
+        .game-over button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+        }
+
+        .line-clear {
+            animation: lineClear 0.5s ease-out;
+        }
+
+        @keyframes lineClear {
+            0% {
+                background: white;
+                transform: scaleX(1.1);
+            }
+            50% {
+                background: rgba(76, 175, 80, 0.8);
+                transform: scaleX(1);
+            }
+            100% {
+                background: linear-gradient(135deg, #4CAF50, #45a049);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-grid"></div>
+    <div class="floating-particles" id="particles"></div>
+    <div class="game-container">
+        <div id="game-board"></div>
+        <div class="info-panel">
+            <div class="score">分数: <span id="score">0</span></div>
+            <div>下一个:</div>
+            <div class="next-piece" id="next-piece"></div>
+            <div class="controls">
+                <div><span>←</span> <span>→</span> 移动方块</div>
+                <div><span>↑</span> 旋转方块</div>
+                <div><span>↓</span> 加速下落</div>
+                <div><span>空格</span> 直接落下</div>
+            </div>
+        </div>
+    </div>
+    <div class="game-over" id="game-over">
+        <h2>游戏结束</h2>
+        <p>最终得分</p>
+        <div class="final-score" id="final-score">0</div>
+        <button onclick="restartGame()">重新开始</button>
+    </div>
+
+    <script>
+        const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = 20;
+        let score = 0;
+        let currentPiece = null;
+        let nextPiece = null;
+        let board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+        
+        const PIECES = [
+            [[1, 1, 1, 1]], // I
+            [[1, 1], [1, 1]], // O
+            [[1, 1, 1], [0, 1, 0]], // T
+            [[1, 1, 1], [1, 0, 0]], // L
+            [[1, 1, 1], [0, 0, 1]], // J
+            [[1, 1, 0], [0, 1, 1]], // S
+            [[0, 1, 1], [1, 1, 0]]  // Z
+        ];
+
+        function createBoard() {
+            const gameBoard = document.getElementById('game-board');
+            for (let i = 0; i < BOARD_HEIGHT; i++) {
+                for (let j = 0; j < BOARD_WIDTH; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${i}-${j}`;
+                    gameBoard.appendChild(cell);
+                }
+            }
+        }
+
+        function getRandomPiece() {
+            const piece = PIECES[Math.floor(Math.random() * PIECES.length)];
+            return {
+                shape: piece,
+                x: Math.floor((BOARD_WIDTH - piece[0].length) / 2),
+                y: 0
+            };
+        }
+
+        function drawBoard() {
+            for (let i = 0; i < BOARD_HEIGHT; i++) {
+                for (let j = 0; j < BOARD_WIDTH; j++) {
+                    const cell = document.getElementById(`cell-${i}-${j}`);
+                    cell.className = 'cell' + (board[i][j] ? ' filled' : '');
+                }
+            }
+        }
+
+        function drawPiece() {
+            if (!currentPiece) return;
+            currentPiece.shape.forEach((row, i) => {
+                row.forEach((cell, j) => {
+                    if (cell) {
+                        const y = currentPiece.y + i;
+                        const x = currentPiece.x + j;
+                        if (y >= 0) {
+                            const cell = document.getElementById(`cell-${y}-${x}`);
+                            if (cell) cell.className = 'cell filled';
+                        }
+                    }
+                });
+            });
+        }
+
+        function canMove(piece, newX, newY) {
+            return piece.shape.every((row, i) => {
+                return row.every((cell, j) => {
+                    if (!cell) return true;
+                    const nextX = newX + j;
+                    const nextY = newY + i;
+                    return nextX >= 0 && nextX < BOARD_WIDTH &&
+                           nextY < BOARD_HEIGHT &&
+                           (nextY < 0 || !board[nextY][nextX]);
+                });
+            });
+        }
+
+        function rotatePiece() {
+            const newShape = currentPiece.shape[0].map((_, i) =>
+                currentPiece.shape.map(row => row[i]).reverse()
+            );
+            const newPiece = {
+                shape: newShape,
+                x: currentPiece.x,
+                y: currentPiece.y
+            };
+            if (canMove(newPiece, newPiece.x, newPiece.y)) {
+                currentPiece.shape = newShape;
+            }
+        }
+
+        function mergePiece() {
+            currentPiece.shape.forEach((row, i) => {
+                row.forEach((cell, j) => {
+                    if (cell && currentPiece.y + i >= 0) {
+                        board[currentPiece.y + i][currentPiece.x + j] = 1;
+                    }
+                });
+            });
+        }
+
+        function showScorePopup(points, y) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            
+            // 根据得分显示不同文字
+            let text = `+${points}`;
+            if (points >= 400) {
+                text = `太棒了！ +${points}`;
+            } else if (points >= 300) {
+                text = `精彩！ +${points}`;
+            } else if (points >= 200) {
+                text = `不错！ +${points}`;
+            }
+            
+            popup.textContent = text;
+            
+            const board = document.getElementById('game-board');
+            const rect = board.getBoundingClientRect();
+            
+            popup.style.left = `${rect.left + rect.width / 2 - 50}px`;
+            popup.style.top = `${rect.top + (y * (rect.height / BOARD_HEIGHT))}px`;
+            
+            document.body.appendChild(popup);
+            setTimeout(() => popup.remove(), 1000);
+        }
+
+        function createNextPieceBoard() {
+            const nextPieceDiv = document.getElementById('next-piece');
+            nextPieceDiv.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `next-${i}-${j}`;
+                    nextPieceDiv.appendChild(cell);
+                }
+            }
+        }
+
+        function drawNextPiece() {
+            if (!nextPiece) return;
+            
+            // 清除之前的显示
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.getElementById(`next-${i}-${j}`);
+                    if (cell) cell.className = 'cell';
+                }
+            }
+            
+            // 计算居中偏移
+            const offsetX = Math.floor((4 - nextPiece.shape[0].length) / 2);
+            const offsetY = Math.floor((4 - nextPiece.shape.length) / 2);
+            
+            // 显示新的方块
+            nextPiece.shape.forEach((row, i) => {
+                row.forEach((cell, j) => {
+                    if (cell) {
+                        const nextCell = document.getElementById(`next-${i + offsetY}-${j + offsetX}`);
+                        if (nextCell) {
+                            nextCell.className = 'cell filled';
+                            // 添加发光效果
+                            nextCell.style.animation = 'glow 1.5s ease-in-out infinite alternate';
+                        }
+                    }
+                });
+            });
+        }
+
+        async function checkLines() {
+            let linesCleared = [];
+            for (let i = BOARD_HEIGHT - 1; i >= 0; i--) {
+                if (board[i].every(cell => cell)) {
+                    linesCleared.push(i);
+                }
+            }
+
+            if (linesCleared.length > 0) {
+                // 高亮消除的行
+                for (let line of linesCleared) {
+                    for (let j = 0; j < BOARD_WIDTH; j++) {
+                        const cell = document.getElementById(`cell-${line}-${j}`);
+                        cell.classList.add('line-clear');
+                    }
+                }
+
+                // 等待动画完成
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // 计算得分
+                const points = linesCleared.length * 100;
+                const bonus = linesCleared.length >= 4 ? 100 : 0;
+                const totalPoints = points + bonus;
+                
+                score += totalPoints;
+                
+                // 更新分数显示
+                const scoreElement = document.getElementById('score');
+                scoreElement.textContent = score;
+                scoreElement.parentElement.classList.add('highlight');
+                
+                setTimeout(() => {
+                    scoreElement.parentElement.classList.remove('highlight');
+                }, 500);
+
+                // 显示得分弹出效果
+                showScorePopup(totalPoints, linesCleared[0]);
+
+                // 清除行
+                linesCleared.forEach(line => {
+                    board.splice(line, 1);
+                    board.unshift(Array(BOARD_WIDTH).fill(0));
+                });
+            }
+        }
+
+        function gameOver() {
+            const gameOverDiv = document.getElementById('game-over');
+            const finalScoreDiv = document.getElementById('final-score');
+            finalScoreDiv.textContent = score;
+            
+            // 添加动画效果
+            gameOverDiv.style.display = 'block';
+            gameOverDiv.style.animation = 'fadeIn 0.5s ease-out';
+        }
+
+        function restartGame() {
+            board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+            score = 0;
+            document.getElementById('score').textContent = '0';
+            currentPiece = null;
+            nextPiece = null;
+            document.getElementById('game-over').style.display = 'none';
+            gameLoop();
+        }
+
+        async function gameLoop() {
+            if (!currentPiece) {
+                currentPiece = nextPiece || getRandomPiece();
+                nextPiece = getRandomPiece();
+                drawNextPiece();
+                if (!canMove(currentPiece, currentPiece.x, currentPiece.y)) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            drawBoard();
+            drawPiece();
+
+            if (canMove(currentPiece, currentPiece.x, currentPiece.y + 1)) {
+                currentPiece.y++;
+            } else {
+                mergePiece();
+                await checkLines();
+                currentPiece = null;
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!currentPiece) return;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    if (canMove(currentPiece, currentPiece.x - 1, currentPiece.y))
+                        currentPiece.x--;
+                    break;
+                case 'ArrowRight':
+                    if (canMove(currentPiece, currentPiece.x + 1, currentPiece.y))
+                        currentPiece.x++;
+                    break;
+                case 'ArrowUp':
+                    rotatePiece();
+                    break;
+                case 'ArrowDown':
+                    if (canMove(currentPiece, currentPiece.x, currentPiece.y + 1))
+                        currentPiece.y++;
+                    break;
+                case ' ':
+                    while (canMove(currentPiece, currentPiece.x, currentPiece.y + 1))
+                        currentPiece.y++;
+                    break;
+            }
+            drawBoard();
+            drawPiece();
+        });
+
+        createBoard();
+        createNextPieceBoard();
+        setInterval(gameLoop, 500);
+
+        // 添加浮动粒子效果
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 30;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // 随机大小
+                const size = Math.random() * 20 + 10;
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                
+                // 随机漂移和透明度
+                particle.style.setProperty('--drift', Math.random() * 2 - 1);
+                particle.style.setProperty('--opacity', Math.random() * 0.3 + 0.1);
+                
+                // 随机位置和动画延迟
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                
+                container.appendChild(particle);
+            }
+        }
+
+        function createStars() {
+            const container = document.createElement('div');
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = '100%';
+            container.style.height = '100%';
+            container.style.zIndex = '-3';
+            document.body.appendChild(container);
+
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + 'vw';
+                star.style.top = Math.random() * 100 + 'vh';
+                star.style.setProperty('--duration', Math.random() * 3 + 2 + 's');
+                star.style.setProperty('--opacity', Math.random() * 0.5 + 0.3);
+                container.appendChild(star);
+            }
+        }
+
+        // 初始化时创建背景效果
+        createParticles();
+        createStars();
+    </script>
+</body>
+</html>
